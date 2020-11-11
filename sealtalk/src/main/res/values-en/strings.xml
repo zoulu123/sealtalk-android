@@ -569,7 +569,7 @@
 
     <!--chat_bg-->
     <string name="seal_select_chat_bg_title">Chat background</string>
-    <string name="seal_select_chat_bg_album">From photo album</string>
+        <string name="seal_select_chat_bg_album">From photo album</string>
     <string name="seal_select_chat_bg_set">Setting</string>
     <string name="seal_select_chat_bg_set_success">Success</string>
     <string name="seal_select_chat_bg_cancel">Cancel</string>

@@ -50,7 +50,6 @@ import cn.rongcloud.im.net.service.UserService;
 import cn.rongcloud.im.sp.UserCache;
 import cn.rongcloud.im.sp.UserConfigCache;
 import cn.rongcloud.im.ui.activity.ConversationActivity;
-import cn.rongcloud.im.ui.activity.ForwardActivity;
 import cn.rongcloud.im.ui.activity.GroupNoticeListActivity;
 import cn.rongcloud.im.ui.activity.NewFriendListActivity;
 import cn.rongcloud.im.ui.activity.PokeInviteChatActivity;
@@ -64,7 +63,6 @@ import io.rong.imkit.IExtensionModule;
 import io.rong.imkit.RongContext;
 import io.rong.imkit.RongExtensionManager;
 import io.rong.imkit.RongIM;
-import io.rong.imkit.RongMessageItemLongClickActionManager;
 import io.rong.imkit.manager.IUnReadMessageObserver;
 import io.rong.imkit.manager.SendImageManager;
 import io.rong.imkit.mention.IMentionedInputListener;
@@ -73,17 +71,14 @@ import io.rong.imkit.model.Event;
 import io.rong.imkit.model.GroupNotificationMessageData;
 import io.rong.imkit.model.GroupUserInfo;
 import io.rong.imkit.model.UIConversation;
-import io.rong.imkit.model.UIMessage;
 import io.rong.imkit.notification.MessageNotificationManager;
 import io.rong.imkit.userInfoCache.RongUserInfoManager;
-import io.rong.imkit.widget.provider.MessageItemLongClickAction;
 import io.rong.imkit.widget.provider.RealTimeLocationMessageProvider;
 import io.rong.imlib.CustomServiceConfig;
 import io.rong.imlib.IRongCallback;
 import io.rong.imlib.RongIMClient;
 import io.rong.imlib.common.DeviceUtils;
 import io.rong.imlib.cs.CustomServiceManager;
-import io.rong.imlib.location.message.RealTimeLocationStartMessage;
 import io.rong.imlib.model.Conversation;
 import io.rong.imlib.model.Discussion;
 import io.rong.imlib.model.Group;
@@ -95,9 +90,7 @@ import io.rong.imlib.model.UserInfo;
 import io.rong.message.ContactNotificationMessage;
 import io.rong.message.GroupNotificationMessage;
 import io.rong.message.ImageMessage;
-import io.rong.message.NotificationMessage;
 import io.rong.message.TextMessage;
-import io.rong.message.VoiceMessage;
 import io.rong.push.RongPushClient;
 import io.rong.push.pushconfig.PushConfig;
 import io.rong.recognizer.RecognizeExtensionModule;
@@ -115,6 +108,7 @@ public class IMManager {
     private MutableLiveData<Boolean> autologinResult = new MutableLiveData<>();
     private MutableLiveData<Message> messageRouter = new MutableLiveData<>();
     private MutableLiveData<Boolean> kickedOffline = new MutableLiveData<>();
+    private MutableLiveData<Boolean> connectTimeOut = new MutableLiveData<>();
     /**
      * 接收戳一下消息
      */
@@ -180,6 +174,9 @@ public class IMManager {
         // 初始化聊天室监听
         initChatRoomActionListener();
 
+        // 长按消息转发等功能(不实用此方法，使用 SDK 的合并转发)
+//        initMessageItemLongClickAction(context);
+
         // 缓存连接
         cacheConnectIM();
     }
@@ -204,6 +201,9 @@ public class IMManager {
             autologinResult.setValue(false);
             return;
         }
+        // 当有缓存时直接打开数据库
+        String id = userCache.getId();
+        DbManager.getInstance(context).openDb(id);
 
         connectIM(loginToken, true, new ResultCallback<String>() {
             @Override
@@ -541,15 +541,7 @@ public class IMManager {
                 return false;
             }
         });
-    }
 
-    /**
-     * 初始化 IM 相关缓存
-     */
-    private void initIMCache() {
-        // 用户设置缓存 sp
-        configCache = new UserConfigCache(context.getApplicationContext());
-        userCache = new UserCache(context.getApplicationContext());
     }
 
     /**
@@ -665,11 +657,11 @@ public class IMManager {
      */
     public void updateGroupMemberInfoCache(String groupId, String userId, String nickName) {
         GroupUserInfo oldGroupUserInfo = RongUserInfoManager.getInstance().getGroupUserInfo(groupId, userId);
-        if(oldGroupUserInfo == null
-            || (
-                    !oldGroupUserInfo.getNickname().equals(nickName)
-                )
-        ){
+        if (oldGroupUserInfo == null
+                || (
+                !oldGroupUserInfo.getNickname().equals(nickName)
+        )
+        ) {
             GroupUserInfo groupMemberInfo = new GroupUserInfo(groupId, userId, nickName);
             RongIM.getInstance().refreshGroupUserInfoCache(groupMemberInfo);
         }
@@ -787,9 +779,6 @@ public class IMManager {
         RongIM.registerMessageType(PokeMessage.class);
         RongIM.registerMessageTemplate(new PokeMessageItemProvider());
         //RongIM.registerMessageTemplate(new GroupApplyMessageProvider());
-
-        // 开启高清语音
-        RongIM.getInstance().setVoiceMessageType(RongIM.VoiceMessageType.HighQuality);
     }
 
     /**
@@ -841,7 +830,7 @@ public class IMManager {
          * 如果是连接到私有云需要在此配置服务器地址
          * 如果是公有云则不需要调用此方法
          */
-        //RongIM.setServerInfo(BuildConfig.SEALTALK_NAVI_SERVER, BuildConfig.SEALTALK_FILE_SERVER);
+        RongIM.setServerInfo(BuildConfig.SEALTALK_NAVI_SERVER, BuildConfig.SEALTALK_FILE_SERVER);
 
         /*
          * 初始化 SDK，在整个应用程序全局，只需要调用一次。建议在 Application 继承类中调用。
@@ -854,6 +843,18 @@ public class IMManager {
 
         // 可在初始 SDK 时直接带入融云 IM 申请的APP KEY
         RongIM.init(context, BuildConfig.SEALTALK_APP_KEY, true);
+
+        // 开启高清语音
+        RongIM.getInstance().setVoiceMessageType(RongIM.VoiceMessageType.HighQuality);
+    }
+
+    /**
+     * 初始化 IM 相关缓存
+     */
+    private void initIMCache() {
+        // 用户设置缓存 sp
+        configCache = new UserConfigCache(context.getApplicationContext());
+        userCache = new UserCache(context.getApplicationContext());
     }
 
     /**
@@ -928,6 +929,10 @@ public class IMManager {
                     kickedOffline.postValue(true);
                 } else if (connectionStatus == ConnectionStatus.TOKEN_INCORRECT) {
                     //TODO token 错误时，重新登录
+                } else if (connectionStatus == ConnectionStatus.TIMEOUT) {
+                    if (userCache != null) {
+                        cacheConnectIM();
+                    }
                 }
             }
         });
@@ -971,7 +976,10 @@ public class IMManager {
                             imInfoProvider.updateGroupInfo(groupID);
                             imInfoProvider.updateGroupMember(groupID);
                         } else if (groupNotificationMessage.getOperation().equals("Dismiss")) {
-
+                            // 删除数据库中群组
+//                            imInfoProvider.deleteGroupInfoInDb(groupID);
+                            // 删除群组会话和消息
+//                            clearConversationAndMessage(groupID, Conversation.ConversationType.GROUP);
                         } else if (groupNotificationMessage.getOperation().equals("Kicked")) {
                             //群组踢人
                             boolean isKicked = false;
@@ -1094,6 +1102,39 @@ public class IMManager {
             }
         });
     }
+
+
+//    private void initMessageItemLongClickAction(Context context) {
+//        MessageItemLongClickAction action = new MessageItemLongClickAction.Builder()
+//                .titleResId(R.string.seal_forward_message)
+//                .showFilter(new MessageItemLongClickAction.Filter() {
+//                    @Override
+//                    public boolean filter(UIMessage message) {
+//                        MessageContent messageContent = message.getContent();
+//                        return !(messageContent instanceof NotificationMessage)
+//                                && !(messageContent instanceof VoiceMessage)
+//                                && !(messageContent instanceof RealTimeLocationStartMessage)
+//                                && message.getSentStatus() != Message.SentStatus.FAILED
+//                                && message.getSentStatus() != Message.SentStatus.CANCELED
+//                                && !message.getConversationType().equals(Conversation.ConversationType.ENCRYPTED);
+//                    }
+//                })
+//                .actionListener(new MessageItemLongClickAction.MessageItemLongClickListener() {
+//                    @Override
+//                    public boolean onMessageItemLongClick(Context context, UIMessage message) {
+//                        Message forwardMesage = message.getMessage();
+//                        Intent intent = new Intent(context, ForwardActivity.class);
+//                        ArrayList<Message> messageList = new ArrayList<>();
+//                        messageList.add(forwardMesage);
+//                        intent.putParcelableArrayListExtra(IntentExtra.FORWARD_MESSAGE_LIST, messageList);
+//                        context.startActivity(intent);
+//                        return true;
+//                    }
+//                })
+//                .build();
+//
+//        RongMessageItemLongClickActionManager.getInstance().addMessageItemLongClickAction(action, -1);
+//    }
 
     /**
      * 设置通知消息免打扰
@@ -1444,6 +1485,7 @@ public class IMManager {
                 DbManager.getInstance(context).openDb(s);
             }
 
+            @Override
             public void onError(RongIMClient.ConnectionErrorCode errorCode) {
                 SLog.e(LogTag.IM, "connect error - code:" + errorCode.getValue());
                 if (errorCode == RongIMClient.ConnectionErrorCode.RC_CONN_TOKEN_INCORRECT) {
@@ -1457,7 +1499,7 @@ public class IMManager {
                         public void onFail(int errorCode) {
                             callback.onFail(errorCode);
                         }
-                    });;
+                    });
                 } else {
                     if (callback != null) {
                         callback.onFail(ErrorCode.IM_ERROR.getCode());
@@ -1502,6 +1544,15 @@ public class IMManager {
     }
 
     /**
+     * 被连接超时, true 为当前为超时状态， false 为不需要处理
+     *
+     * @return
+     */
+    public LiveData<Boolean> getConnectTimeout() {
+        return connectTimeOut;
+    }
+
+    /**
      * 重置被提出状态为 false
      */
     public void resetKickedOfflineState() {
@@ -1510,6 +1561,13 @@ public class IMManager {
         } else {
             kickedOffline.postValue(false);
         }
+    }
+
+    /**
+     * 重置登出状态为 false
+     */
+    public void resetConnectTimeOutState() {
+        connectTimeOut.postValue(false);
     }
 
     /**
@@ -1609,6 +1667,7 @@ public class IMManager {
     public ConversationRecord getLastConversationRecord() {
         return lastConversationRecord;
     }
+
 
     /**
      * 设置推送消息通知是否显示信息

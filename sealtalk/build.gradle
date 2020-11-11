@@ -7,8 +7,8 @@ android {
         applicationId "cn.rongcloud.im"
         minSdkVersion 19
         targetSdkVersion 28
-        versionCode 2020062411
-        versionName "4.0.0.1"
+        versionCode 2020080411
+        versionName "4.0.3"
         ndk {
             abiFilters "armeabi-v7a", 'x86'
         }
@@ -25,6 +25,7 @@ android {
         buildConfigField "String", "SEALTALK_MIZU_PUSH_APPID", "${SEALTALK_MIZU_PUSH_APPID}"
         buildConfigField "String", "SEALTALK_MIZU_PUSH_APPKEY", "${SEALTALK_MIZU_PUSH_APPKEY}"
         manifestPlaceholders = [SEALTALK_HW_PUSH_APPID: SEALTALK_HW_PUSH_APPID.replaceAll('"', '')]
+
     }
 
     buildTypes {
@@ -51,8 +52,8 @@ android {
 }
 
 dependencies {
-    implementation fileTree(include: ['*.jar', '*.aar'], dir: 'libs')
     implementation 'com.huawei.hms:push:4.0.2.300'
+    implementation fileTree(include: ['*.jar', '*.aar'], dir: 'libs')
     implementation 'androidx.appcompat:appcompat:1.1.0-beta01'
     implementation 'androidx.constraintlayout:constraintlayout:2.0.0-beta1'
     implementation 'androidx.multidex:multidex:2.0.1'
@@ -79,18 +80,23 @@ dependencies {
     implementation 'com.tencent.bugly:nativecrashreport:3.7.1'
     implementation 'com.tencent.mm.opensdk:wechat-sdk-android-with-mta:+'
 
-    api 'cn.rongcloud.sdk:im_kit:4.0.0.3'
+    api 'cn.rongcloud.sdk:im_kit:4.0.3'
     //im_kit必须依赖im_lib，所以需要加入对应依赖
-    api 'cn.rongcloud.sdk:im_lib:4.0.0.3'
+    api 'cn.rongcloud.sdk:im_lib:4.0.3'
 
-    api 'cn.rongcloud.sdk:rcsticker:4.0.0.3'
-    api 'cn.rongcloud.sdk:sight:4.0.0.3'
+    api 'cn.rongcloud.sdk:rcsticker:4.0.3'
+    api 'cn.rongcloud.sdk:sight:4.0.3'
 
-    api 'cn.rongcloud.sdk:call_lib:4.0.0.3'
-    api 'cn.rongcloud.sdk:call_kit:4.0.0.3'
+    api 'cn.rongcloud.sdk:call_lib:4.0.3'
+    api 'cn.rongcloud.sdk:call_kit:4.0.3'
 
     api project(path: ':contactcard')
     api project(path: ':recognizer')
     api project(path: ':pushpermission')
+
+    //api 'org.jacoco:jacoco-maven-plugin:0.7.9'
+
+    api 'org.jacoco:org.jacoco.agent:0.7.9:runtime'
 }
-// apply plugin: 'com.huawei.agconnect'
+
+//apply plugin: 'com.huawei.agconnect'
